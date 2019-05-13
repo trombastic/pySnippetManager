@@ -224,14 +224,14 @@ class TextEditor(Text):
             return None
         self.content = self.get("1.0", END)
         #self.lines = self.content.split("\n")
-        if (self.snippet.code != self.content):
+        if (self.snippet.snippet != self.content):
             self.mark_set("range_start", self.row + ".0")
             #data = self.text.get(self.row + ".0", self.row + "." + str(len(self.lines[int(self.row) - 1])))
             for token, content in self.snippet.lexer.get_tokens(self.content):
                 self.mark_set("range_end", "range_start + %dc" % len(content))
                 self.tag_add(str(token), "range_start", "range_end")
                 self.mark_set("range_start", "range_end")
-        self.snippet.code = self.get("1.0", END)
+        self.snippet.snippet = self.get("1.0", END)
     
     def update_highlight(self):
         self.previousContent = ''
@@ -257,16 +257,16 @@ class TextEditor(Text):
     
     @property
     def snippet(self):
-        return self.snippet
+        return self._snippet
     
     @snippet.setter
     def snippet(self,cs):
         self.remove_highlight()
-        self.snippet = cs
+        self._snippet = cs
         if cs is not None:
-            self.snippet.bind("lexer_befor_change",self.remove_highlight)
-            self.snippet.bind("lexer_after_change",self.update_highlight)
-            self.replace_text("1.0", self.snippet.snippet)
+            self._snippet.bind("lexer_befor_change",self.remove_highlight)
+            self._snippet.bind("lexer_after_change",self.update_highlight)
+            self.replace_text("1.0", self._snippet.snippet)
         
 
 class App(object):

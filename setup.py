@@ -13,10 +13,10 @@ CLASSIFIERS = [
     'Programming Language :: Python',
 ]
 setup(
-    author=pycsm.__author__,
+    author=pysnippetmanager.__author__,
     author_email="m.schroeder@tu-berlin.de",
     name='pySnippetManager',
-    version=pycsm.__version__,
+    version=pysnippetmanager.__version__,
     description='A Snippet Manager written in Python',
     long_description=open(os.path.join(os.path.dirname(__file__), 'README.rst')).read(),
     url='http://www.github.com/trombastic/pySnippetManager',
