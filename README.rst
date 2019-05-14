@@ -1,13 +1,18 @@
 A Python Snippet Manager
-===================================================
+========================
 
 
+.. image:: ./doc/pySnippetManager.png
+   :height: 100
+   :width: 200
+   :alt: screen shot of the program
 
 
 Dependencies
 ------------
 
  - pygments
+ - pillow
 
 
 What is Working
@@ -29,9 +34,17 @@ Installation
 ------------
 
 
+::
+
+    pip3 install pysnippetmanager
+
 
 Usage
 -----
+
+::
+
+    pysnippetmanager
 
 
 

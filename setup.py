@@ -24,7 +24,8 @@ setup(
     platforms=['OS Independent'],
     classifiers=CLASSIFIERS,
     install_requires=[
-        'pygments'
+        'pygments',
+        'pillow'
     ],
     packages=find_packages(exclude=["project", "project.*"]),
     include_package_data=True,
