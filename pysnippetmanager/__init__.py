@@ -7,7 +7,7 @@ __author__ = "Martin Schröder"
 __copyright__ = "Copyright 2019, Martin Schröder"
 __credits__ = []
 __license__ = "GPLv3"
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __maintainer__ = "Martin Schröder"
 __email__ = "m.schroeder@tu-berlin.de"
 __status__ = "Alpha"
@@ -15,7 +15,7 @@ __docformat__ = 'reStructuredText'
 
 from pygments import highlight, lex
 from pygments.lexers import get_lexer_by_name, get_all_lexers
-from pygments.lexer import RegexLexer
+from pygments.lexer import Lexer
 from pygments.formatters import HtmlFormatter
 try:
     from tkinter import *
@@ -28,7 +28,10 @@ import os
 import sys
 import re
 import fnmatch
+from PIL import Image, ImageTk
 
+DIR_IMG = os.path.dirname(os.path.abspath(__file__)) + '/../img/folder.png'
+FILE_IMG = os.path.dirname(os.path.abspath(__file__)) + '/../img/file.png'
 
 class Snippet(object):
     """ A Snippet Object
@@ -40,7 +43,7 @@ class Snippet(object):
     tags = []
     label = 'none'  # the label of the  Snippet
     attachments = []  # a list of attachments
-    _raw_code = ''  # 
+    _raw_snippet = ''  # 
     filename = None  # name and location of the file holding the  snippet
     events = {}
     def __init__(self, filename, lexer_alias=None, create=False, base_dir='~/'):
@@ -116,16 +119,18 @@ class Snippet(object):
     @lexer.setter
     def lexer(self, value):
         self.trigger_event("lexer_befor_change")
-        if type(value) is str:
+        if value is None:
+            self._lexer = get_lexer_by_name("text")
+        elif type(value) is str:
             try:
                 self._lexer = get_lexer_by_name(value)
             except:
                 self._lexer = get_lexer_by_name('text')  # todo change to text
             self.lexer_alias = self._lexer.aliases[0]
-        elif isinstance(value, RegexLexer):
+        elif isinstance(value, Lexer):
             self._lexer = value
             self.lexer_alias = value.aliases[0]
-        elif issubclass(value, RegexLexer):
+        elif issubclass(value, Lexer):
             self._lexer = value()
             self.lexer_alias = value.aliases[0]
         else:
@@ -267,7 +272,46 @@ class TextEditor(Text):
             self._snippet.bind("lexer_befor_change",self.remove_highlight)
             self._snippet.bind("lexer_after_change",self.update_highlight)
             self.replace_text("1.0", self._snippet.snippet)
-        
+
+class StringInputDialog(object):
+    """
+    https://stackoverflow.com/questions/15522336/text-input-in-tkinter
+    """
+    def __init__(self,master,request_message):
+        self.master = master
+        self.root = Toplevel(master)
+        self.string = None
+        self.frame = Frame(self.root)
+        self.frame.pack()
+        self.accept_input(request_message)
+
+    def accept_input(self,request_message):
+        r = self.frame
+
+        k = Label(r,text=request_message)
+        k.pack(side='left')
+        self.e = Entry(r,text='Name')
+        self.e.pack(side='left')
+        self.e.focus_set()
+        b = Button(r,text='OK',command=self.get_text)
+        b.pack(side='right')
+        b = Button(r,text='CANCLE',command=self.cancle)
+        b.pack(side='right')
+
+    def get_text(self):
+        self.string = self.e.get()
+        print(self.string)
+        self.root.destroy()
+    
+    def cancle(self):
+        self.string = None
+        self.root.destroy()
+    
+    def get_string(self):
+        return self.string
+
+    def wait_for_input(self):
+        self.master.wait_window(self.root)
 
 class App(object):
     """
@@ -282,8 +326,11 @@ class App(object):
     lexers = None
     lexer_option_menu = None
     id = 0
+    dir_img = None
+    popup_active = False
     def __init__(self, master):
         self.init_lexers()
+        self.master = master
         self.frame = Frame(master)
         #self.frame.grid()
         self.text = TextEditor(self.frame)
@@ -292,6 +339,7 @@ class App(object):
 
         self.treeview.pack(side=LEFT,fill="both",expand=True)
         self.treeview.bind("<<TreeviewSelect>>", self.tree_select, "+")
+        self.treeview.bind("<Button-3>", self.tree_mouse_right, "+")
         # create a toolbar
         toolbar = Frame(master)
         self.lexer_options = StringVar(toolbar)
@@ -316,8 +364,16 @@ class App(object):
         self.text.pack(side=BOTTOM,fill=X)
         self.text.insert("1.0","")
         self.frame.pack()
+        
+        # images
+        self.dir_img = ImageTk.PhotoImage(Image.open(DIR_IMG))
+        self.file_img = ImageTk.PhotoImage(Image.open(FILE_IMG))
+        
+        # init content
         self.read_config()
         self.crawler()
+        
+        
     
     def init_lexers(self):
         """
@@ -359,13 +415,16 @@ class App(object):
                                    lexer_alias=self.snippets['%d'%self.id].lexer_alias,
                                    parent=self.snippets['%d'%self.id].group)
                 self.id += 1
+            for subdir in subdirs:
+                #print()
+                self.tree_add_group(os.path.join(root,subdir).replace(os.path.expanduser(self.base_dir),''))
 
     def tree_add_item(self, iid, label, lexer_alias, parent=''):
         """
         
         """
         self.tree_add_group(parent)
-        self.treeview.insert(parent, "end", iid, text=label, open=True, values=(lexer_alias,))
+        self.treeview.insert(parent, "end", iid, text=label, open=True, values=(lexer_alias,),image=self.file_img)
     
     def tree_add_group(self,group_str):
         if group_str == '':
@@ -379,15 +438,90 @@ class App(object):
             self.treeview.insert(self.groups[group_str][1], "end",
                                     group_str, 
                                     text=glabel, 
-                                    open=True, values=())
+                                    open=True, values=(),image=self.dir_img)
+            #self.treeview.image = self.dir_img
             return gparent
         else:
             self.groups[group_str][1]
     
     def tree_select(self, event=None):
         self.save()
-        self.text.snippet = self.snippets[self.treeview.focus()]
+        iid = self.treeview.focus()
+        if iid is None:
+            return False
+        if iid not in self.snippets:
+            return False
+        self.text.snippet = self.snippets[iid]
         self.lexer_option_menu.set(self.text.snippet.lexer_alias)
+    
+    def tree_mouse_right(self, event=None):
+        #print(self.treeview.focus())
+        # select row under mouse
+        if self.popup_active:
+            return
+        
+        iid = self.treeview.identify_row(event.y)
+        rmenu = Menu(self.master, tearoff=0)
+        
+        def do_popup(event):
+            # display the popup menu
+            try:
+                #rmenu.post(event.x_root+40, event.y_root+10, entry="0")
+                rmenu.post(event.x_root, event.y_root)
+            finally:
+                # make sure to release the grab (Tk 8.0a1 only)
+                rmenu.grab_release()
+        
+        def _new_folder(event=None):
+            self.master.unbind("<ButtonRelease-1>")
+            self.popup_active = False
+            print(iid)
+            dir_dialog = StringInputDialog(self.master, 'Dir Nname')
+            dir_dialog.wait_for_input()
+            print(dir_dialog.get_string())
+            if dir_dialog.get_string() is None:
+                return 'break'
+            subpath = dir_dialog.get_string()
+            # create folder
+            directory = os.path.join(self.base_dir, iid[1:], subpath)
+            print(directory)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+                self.tree_add_group(os.path.join(iid,subpath))
+            return 'break'
+        
+        def _new_file(event=None):
+            self.master.unbind("<ButtonRelease-1>")
+            self.popup_active = False
+            self.new(iid)
+            
+        
+        def _close_menu(event=None):
+            self.master.unbind("<ButtonRelease-1>")
+            self.popup_active = False
+            rmenu.destroy()
+        
+        self.master.bind("<ButtonRelease-1>",_close_menu)
+        if iid:
+            # mouse pointer over an item
+            self.treeview.focus(iid)
+            if iid in self.snippets:
+                # snipped selected
+                pass
+            else:
+                # folder selected
+                rmenu.add_command(label=' new file', command=_new_file)
+                rmenu.add_separator()
+                rmenu.add_command(label=' new folder', command=_new_folder)
+                
+            #print(event.x_root, event.y_root)            
+        else:
+            # no item selected
+            rmenu.add_command(label=' new file', command=_new_file)
+            rmenu.add_separator()
+            rmenu.add_command(label=' new folder', command=_new_folder)
+        self.popup_active = True
+        do_popup(event)
 
     def save(self):
         """
@@ -399,7 +533,7 @@ class App(object):
     def quit(self):
         if messagebox.askokcancel("Quit", "Do you really wish to quit?"):
             self.save()
-            root.destroy()
+            self.master.destroy()
 
     def close(self):
         """
@@ -436,11 +570,12 @@ class App(object):
         return True
         
     
-    def new(self):
+    def new(self, subpath=''):
         """
         create a new Snippet
         """
-        filename = asksaveasfilename(initialdir=self.base_dir, 
+        
+        filename = asksaveasfilename(initialdir=os.path.join(self.base_dir,subpath[1:]), 
                                      title="Select file", 
                                      filetypes=(("Snippet Files","*.pycsm"),
                                                 ("all files","*.*")))
@@ -471,7 +606,7 @@ class App(object):
             self.lexer_option_menu.set(self.text.snippet.lexer_alias)
 
 def run():
-    root = Tk()
+    root = Tk() #Tk()
     app = App(root)
     root.mainloop()
 

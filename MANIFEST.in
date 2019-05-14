@@ -5,4 +5,5 @@ include CHANGELOG.txt
 recursive-include pysnippetmanager/ *
 recursive-include docs *
 recursive-include scripts *
+recursive-include img *
 recursive-exclude * *.pyc
