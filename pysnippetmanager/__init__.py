@@ -239,7 +239,7 @@ class TextEditor(Text):
         self.content = ''
         self.update_highlight()
 
-    def default_highlight(self):
+    def default_highlight(self, event=None):
         if self.snippet is None:
             return None
         self.content = self.get("1.0", END)
